@@ -1,0 +1,128 @@
+function [ xMatrix, populationM, waterDemandM angatCapacityM actualDemandM industryDemandM] = WaterDemand( population, growthRate, startYear, endYear, perCapita )
+%WATERDEMAND Summary of this function goes here
+%   Detailed explanation goes here
+    
+    years = endYear - startYear;
+    xMatrix = createXValues(startYear, years, 12);
+    populationM = projectPopulation(population, growthRate, years);
+    waterDemandM = getWaterDemand(cell2mat(populationM), perCapita, years);
+    angatCapacityM = getAngatCapacity(years);
+    actualDemandM = getActualDemand();
+    alpha = getAlpha(actualDemandM, populationM);
+    industryDemandM = getIndWaterDemand(populationM, alpha, years);
+    disp('cap');
+    %ang = cell2mat(industryDemandM);
+    %a = ang(30,1)     
+    disp(industryDemandM);
+    a = industryDemandM(30)
+    disp('demand');
+    %industryDemand = cell2mat(industryDemandM);
+    temp = ang(30, 1)
+    temp = temp - 4000000000
+    temp = temp / 4000000000
+end
+
+function [ waterDemandMatrix ] = getWaterDemand(populationMatrix, perCapita, years)
+    % In cases of MWSS-NIA conflicts, NWRB serves as arbiter and historically, 
+    % the basis for allocation for domestic use has been the planning standard 
+    % of 0.0029 liters per second per capita or 250 liters per capita per day (PIDS, 1999)
+    
+    % perYear = perCapita*60*60*24*365;
+    perYear = perCapita*60*60*24;
+    waterDemandMatrix = {};
+    for i = 1:years
+        waterDemandValue = populationMatrix(i) * perYear;
+        waterDemandMatrix = vertcat(waterDemandMatrix, waterDemandValue);
+    end
+end
+
+% function [ waterNeededMatrix ] = getWaterNeeded(indWaterDemandMatrix)
+%     waterNeededMatrix = {};
+%     for i = 1:years
+%         tempMatrix={};
+%         for j = 1:12
+%             tempValue = indWaterDemandMatrix()
+% end
+
+function [ alpha ] = getAlpha(actualDemandMatrix, populationMatrix)
+    industryWaterDemandMatrix = {};
+    %actualDemandMatrix = cell2mat(actualDemandMatrix);
+    populationMatrix = cell2mat(populationMatrix);
+    for i=1:length(actualDemandMatrix)
+        tempMatrix = {};
+        for j = 1:12
+            industryWaterDemandValue = actualDemandMatrix(i,j) - populationMatrix(i);
+            industryWaterDemandValue = industryWaterDemandValue / populationMatrix(i);
+            tempMatrix = [tempMatrix industryWaterDemandValue];
+        end
+        industryWaterDemandMatrix = vertcat(industryWaterDemandMatrix, tempMatrix);
+    end
+    alpha = mean(cell2mat(industryWaterDemandMatrix), 2);
+    alpha = mean(alpha);
+end
+
+function [ industryWaterDemandMatrix ] = getIndWaterDemand(populationMatrix, alpha, years)
+    industryWaterDemandMatrix = {};
+    populationMatrix = cell2mat(populationMatrix);
+    for i = 1:years
+        industryWaterDemandValue = alpha * populationMatrix(i);
+        industryWaterDemandValue = industryWaterDemandValue + populationMatrix(i);
+        industryWaterDemandMatrix = vertcat(industryWaterDemandMatrix, industryWaterDemandValue);
+    end
+    
+end
+
+function [ populationMatrix ] = projectPopulation(population, growthRate, years)
+    % returns a matrix of population predictions
+    % rows = number of months (always 12)
+    % columns = years
+    % population value is always the same for a year
+    
+    populationMatrix = {};
+    for i = 1:years
+        populationMatrix = vertcat(populationMatrix, population);
+        newPop = population + (growthRate*population)*1;
+        population = newPop;
+    end
+end
+
+function [ mwss ] = getActualDemand()
+    mwss = csvread('mwss.csv', 1, 1);
+    mwss = mwss(23:46, 1:12);
+    %disp(mwss);
+    mwss = mwss * (86400000);
+    %disp(mwss);
+end
+
+
+function [ angatCapacityMatrix ] = getAngatCapacity(years)
+    % capacity = 850*(10^6) * 1000;
+    % angat supplies 500 million gallons per day
+    % 1 gallon = 3.785412 liters
+    % capacity = 500000000*3.785412*365;
+    
+    capacity = 4000*1000000;
+    %capacity = 738 * 1000000 * 1000;
+    angatCapacityMatrix = {};
+    for i = 1:years
+        angatCapacityMatrix = vertcat(angatCapacityMatrix, capacity);
+    end
+end
+
+function [ xMatrix ] = createXValues (start, years, months)
+    % creates the x values for the graph
+    % start is the start year
+    % years is the number of years the items would be computed.
+    % e.g. if start = 2010, years = 15, xMatrix would be [2010 ... 2025]
+    
+    xMatrix = {};
+    tempMatrix = {};
+    for i = 1:years
+        tempMatrix = {};
+        for j = 1:months
+           tempMatrix = [tempMatrix start];
+        end
+        xMatrix = vertcat(xMatrix, tempMatrix);
+        start = start + 1;
+    end
+end
